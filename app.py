@@ -182,7 +182,7 @@ def execute_query():
         response = openai.ChatCompletion.create(
             model="gpt-3.5-turbo",
             messages=[
-                {"role": "system", "content": "You are a pymongo expert. Generate only the pymongo query without any explanation."},
+                {"role": "system", "content": "You are a mysql expert. Generate only the mysql query without any explanation."},
                 {"role": "user", "content": prompt}
             ],
             temperature=0
