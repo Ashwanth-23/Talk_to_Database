@@ -9,118 +9,200 @@
 </head>
 <body class="bg-gray-100 min-h-screen flex items-center justify-center">
     <div class="max-w-md w-full mx-4">
-        <!-- Login Card -->
         <div class="bg-white rounded-lg shadow-lg overflow-hidden">
-            <!-- Header -->
             <div class="bg-indigo-600 px-6 py-8 text-center">
                 <h1 class="text-2xl font-bold text-white">Database Explorer</h1>
-                <p class="text-indigo-200 mt-2">Connect to {{ db_type }}</p>
+                <p class="text-indigo-200 mt-2">Connect to <span id="dbTypeDisplay" class="capitalize">{{ db_type }}</span></p>
             </div>
 
-            <!-- Login Form -->
             <div class="p-6">
                 <form id="loginForm" class="space-y-4">
-                    <!-- Database Name -->
-                       <!-- Add hidden input for db_type -->
-                    <input type="hidden" name="db_type" value="{{ db_type }}">
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">
-                            Database Name
-                        </label>
-                        <input type="text" name="db_name" required
-                            class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500">
+                    <input type="hidden" name="db_type" id="dbType" value="{{ db_type }}">
+                    
+                    <!-- SQLite Connection String Field -->
+                    <div id="sqliteFields" class="space-y-4 hidden">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">
+                                SQLite Cloud Connection String
+                            </label>
+                            <input 
+                                type="text" 
+                                name="sqlite_connection_string" 
+                                placeholder="sqlitecloud://hostname:port/database?apikey=your-api-key"
+                                class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
+                            >
+                            <p class="mt-1 text-sm text-gray-500">
+                                Format: sqlitecloud://hostname:port/database?apikey=your-api-key
+                            </p>
+                        </div>
                     </div>
 
-                    <!-- Username -->
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">
-                            Username
-                        </label>
-                        <input type="text" name="db_user" required
-                            class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500">
+                    <!-- Standard Database Fields -->
+                    <div id="standardFields" class="space-y-4 hidden">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">
+                                Database Name
+                            </label>
+                            <input type="text" name="standard_db_name" 
+                                class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500">
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">
+                                Username
+                            </label>
+                            <input type="text" name="db_user"
+                                class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500">
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">
+                                Password
+                            </label>
+                            <div class="relative">
+                                <input type="password" name="db_password"
+                                    class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500">
+                                <button type="button" class="toggle-password absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500">
+                                    <i class="fas fa-eye"></i>
+                                </button>
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">
+                                Host
+                            </label>
+                            <input type="text" name="db_host"
+                                class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500">
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">
+                                Port
+                            </label>
+                            <input type="text" name="db_port"
+                                class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500">
+                        </div>
                     </div>
 
-                    <!-- Password -->
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">
-                            Password
-                        </label>
-                        <input type="password" name="db_password" required
-                            class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500">
-                    </div>
-
-                    <!-- Host -->
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">
-                            Host
-                        </label>
-                        <input type="text" name="db_host" required
-                            class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500">
-                    </div>
-
-                    <!-- Port -->
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">
-                            Port
-                        </label>
-                        <input type="text" name="db_port" required
-                            class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500">
-                    </div>
-
-                    <!-- Submit Button -->
                     <button type="submit"
                         class="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
-                        Connect to Database
+                        <span class="inline-flex items-center">
+                            <i class="fas fa-spinner fa-spin mr-2 hidden" id="loadingIcon"></i>
+                            <span id="buttonText">Connect to Database</span>
+                        </span>
                     </button>
+
+                    <a href="/" 
+                        class="mt-2 w-full flex justify-center py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                        Back to Database Selection
+                    </a>
                 </form>
 
-                <!-- Error Message -->
                 <div id="error" class="mt-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded hidden"></div>
             </div>
         </div>
     </div>
 
     <script>
-        document.getElementById('loginForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const form = e.target;
-            const errorDiv = document.getElementById('error');
-            const submitBtn = form.querySelector('button[type="submit"]');
+        document.addEventListener('DOMContentLoaded', () => {
+            const dbType = window.location.pathname.split('/').pop();
+            document.getElementById('dbType').value = dbType;
             
-            try {
-                // Disable button and show loading state
-                submitBtn.disabled = true;
-                submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Connecting...';
-                errorDiv.classList.add('hidden');
-
-                const formData = new FormData(form);
-
-                // Debug log to see what's being sent
-                console.log('Form data:', Object.fromEntries(formData));
-                
-                const response = await fetch('/connect', {
-                    method: 'POST',headers: {
-                    'Accept': 'application/json'
-                },
-                body: formData
+            // Toggle password visibility
+            document.querySelectorAll('.toggle-password').forEach(button => {
+                button.addEventListener('click', (e) => {
+                    const input = e.currentTarget.parentElement.querySelector('input');
+                    const icon = e.currentTarget.querySelector('i');
+                    
+                    if (input.type === 'password') {
+                        input.type = 'text';
+                        icon.classList.remove('fa-eye');
+                        icon.classList.add('fa-eye-slash');
+                    } else {
+                        input.type = 'password';
+                        icon.classList.remove('fa-eye-slash');
+                        icon.classList.add('fa-eye');
+                    }
                 });
+            });
+
+            function toggleFormFields(dbType) {
+                const sqliteFields = document.getElementById('sqliteFields');
+                const standardFields = document.getElementById('standardFields');
                 
-                const data = await response.json();
-                
-                if (response.ok) {
-                    window.location.href = data.redirect;
+                if (dbType.toLowerCase() === 'sqlite') {
+                    sqliteFields.classList.remove('hidden');
+                    standardFields.classList.add('hidden');
+                    document.querySelector('[name="sqlite_connection_string"]').required = true;
+                    document.querySelectorAll('#standardFields input').forEach(input => {
+                        input.required = false;
+                        input.value = ''; // Clear standard fields
+                    });
                 } else {
-                    errorDiv.textContent = data.error;
-                    errorDiv.classList.remove('hidden');
+                    sqliteFields.classList.add('hidden');
+                    standardFields.classList.remove('hidden');
+                    document.querySelector('[name="sqlite_connection_string"]').required = false;
+                    document.querySelector('[name="sqlite_connection_string"]').value = ''; // Clear SQLite field
+                    document.querySelectorAll('#standardFields input').forEach(input => {
+                        input.required = true;
+                    });
                 }
-            } catch (error) {
-                errorDiv.textContent = "Connection failed. Please try again.";
-                errorDiv.classList.remove('hidden');
-            } finally {
-                // Reset button state
-                submitBtn.disabled = false;
-                submitBtn.innerHTML = 'Connect to Database';
             }
+
+            toggleFormFields(dbType);
+
+            document.getElementById('loginForm').addEventListener('submit', async (e) => {
+                e.preventDefault();
+                
+                const form = e.target;
+                const errorDiv = document.getElementById('error');
+                const loadingIcon = document.getElementById('loadingIcon');
+                const buttonText = document.getElementById('buttonText');
+                const submitBtn = form.querySelector('button[type="submit"]');
+
+                try {
+                    submitBtn.disabled = true;
+                    loadingIcon.classList.remove('hidden');
+                    buttonText.textContent = 'Connecting...';
+                    errorDiv.classList.add('hidden');
+
+                    const formData = new FormData(form);
+                    
+                    // Handle SQLite connection string
+                    if (dbType.toLowerCase() === 'sqlite') {
+                        const connectionString = formData.get('sqlite_connection_string');
+                        formData.delete('sqlite_connection_string');
+                        formData.set('db_name', connectionString);
+                    } else {
+                        // For standard databases, use the standard db_name
+                        const dbName = formData.get('standard_db_name');
+                        formData.delete('standard_db_name');
+                        formData.set('db_name', dbName);
+                    }
+
+                    const response = await fetch('/connect', {
+                        method: 'POST',
+                        body: formData
+                    });
+
+                    const data = await response.json();
+
+                    if (response.ok) {
+                        window.location.href = data.redirect;
+                    } else {
+                        errorDiv.textContent = data.error;
+                        errorDiv.classList.remove('hidden');
+                    }
+                } catch (error) {
+                    errorDiv.textContent = "Connection failed. Please try again.";
+                    errorDiv.classList.remove('hidden');
+                } finally {
+                    submitBtn.disabled = false;
+                    loadingIcon.classList.add('hidden');
+                    buttonText.textContent = 'Connect to Database';
+                }
+            });
         });
     </script>
 </body>

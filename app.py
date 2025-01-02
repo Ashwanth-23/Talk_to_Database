@@ -17,6 +17,9 @@ CORS(app)
 # Set OpenAI API Key
 openai.api_key = os.getenv("OPENAI_API_KEY")
 
+
+
+
 # Global variable for database handler
 db_handler = None
 
@@ -93,24 +96,38 @@ def connect_db():
             return jsonify({"error": "Database type is required"}), 400
             
         db_type = db_type.lower()
-        credentials = {
+        print("db_type", db_type)
+        # Get database name/connection string
+        db_name = request.form.get("db_name")
+        if not db_name:
+            return jsonify({"error": "Database name or connection string is required"}), 400
+        if db_type == "sqlite":
+            connection_string = request.form.get("db_name")
+            print("Connection_string",connection_string)
+            if not connection_string:
+                return jsonify({"error": "SQLite connection string is required"}), 400
+            credentials = {"dbname": connection_string}
+        else:
+
+            credentials = {
             "dbname": request.form.get("db_name"),
             "user": request.form.get("db_user"),
             "password": request.form.get("db_password"),
             "host": request.form.get("db_host"),
-            # "port": request.form.get("db_port")
-        }
+            "port": request.form.get("db_port")
+            }
 
         # Log credentials (excluding password)
-        safe_credentials = {**credentials, 'password': '****'}
-        app.logger.info(f"Credentials: {safe_credentials}")
+            safe_credentials = {**credentials, 'password': '****'}
+            app.logger.info(f"Credentials: {safe_credentials}")
         # Validate all required fields are present
-        if not all([credentials['dbname'], credentials['user'], 
+            if not all([credentials['dbname'], credentials['user'], 
                    credentials['password'], credentials['host'], 
                    ]):
-            return jsonify({"error": "All connection fields are required"}), 400
+                return jsonify({"error": "All connection fields are required"}), 400
         
         db_handler = DatabaseHandler(db_type)
+        print("db_handler", db_handler)
         success, error = db_handler.connect(credentials)
         
         if success:

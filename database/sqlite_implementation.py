@@ -1,95 +1,130 @@
 import sqlite3
 from typing import Dict, Any, Optional
-from pathlib import Path
+from urllib.parse import urlparse, parse_qs
+import requests
 
 class SQLiteDatabase:
     def __init__(self):
         self.connection = None
         
     def connect(self, credentials: Dict[str, Any]) -> tuple[bool, Optional[str]]:
-        """Connect to SQLite database"""
+        """Connect to SQLite database using connection string"""
         try:
-            db_path = credentials.get('dbname')
-            if not db_path:
-                return False, "Database path is required"
+            connection_string = credentials.get('dbname')
+            print("connection_string", connection_string)
+
+            if not connection_string:
+                return False, "Connection string is required"
             
-            # Ensure the database file exists
-            if not Path(db_path).exists():
-                return False, f"Database file {db_path} does not exist"
+            # Parse SQLite Cloud connection string
+            try:
+                parsed = urlparse(connection_string)
+                if parsed.scheme != 'sqlitecloud':
+                    return False, "Invalid connection string format. Must start with 'sqlitecloud://'"
                 
-            self.connection = sqlite3.connect(db_path)
-            self.connection.row_factory = sqlite3.Row
-            return True, None
-        except sqlite3.Error as e:
+                # Extract components
+                host = parsed.hostname
+                port = parsed.port
+                database = parsed.path.lstrip('/')
+                query_params = parse_qs(parsed.query)
+                api_key = query_params.get('apikey', [None])[0]
+
+                print("host", host, "port",port, "database", database,"query_params", query_params, "api_key",api_key)
+                
+                if not all([host, port, database, api_key]):
+                    return False, "Missing required connection parameters"
+                
+                # Store connection parameters
+                self.host = host
+                self.port = port
+                self.database = database
+                self.api_key = api_key
+                
+                # Test connection by making a simple query
+                response = requests.get(
+                    f"https://{host}/api/v1/databases/{database}",
+                    headers={'Authorization': f'Bearer {api_key}'}
+                )
+                print("Response",response)
+                
+                if response.status_code != 200:
+                    return False, f"Connection failed: {response.text}"
+                
+                return True, None
+                
+            except Exception as e:
+                return False, f"Invalid connection string: {str(e)}"
+                
+        except Exception as e:
             return False, str(e)
 
     def disconnect(self) -> None:
         """Disconnect from SQLite database"""
-        if self.connection:
-            self.connection.close()
+        self.api_key = None
+        self.host = None
+        self.port = None
+        self.database = None
 
     def get_tables(self) -> list:
         """Get all tables from the database"""
         try:
-            cursor = self.connection.cursor()
-            cursor.execute("""
-                SELECT 
-                    name as table_name,
-                    (SELECT COUNT(*) FROM pragma_table_info(name)) as column_count,
-                    0 as table_size
-                FROM sqlite_master
-                WHERE type='table' AND name NOT LIKE 'sqlite_%'
-                ORDER BY name;
-            """)
-            tables = [{"name": row[0], "columns": row[1], "size": row[2]} 
-                     for row in cursor.fetchall()]
-            cursor.close()
-            return tables
-        except sqlite3.Error as e:
+            response = requests.get(
+                f"https://{self.host}/api/v1/databases/{self.database}/tables",
+                headers={'Authorization': f'Bearer {self.api_key}'}
+            )
+            
+            if response.status_code != 200:
+                return []
+                
+            tables_data = response.json()
+            return [
+                {
+                    "name": table["name"],
+                    "columns": len(table.get("columns", [])),
+                    "size": table.get("rows", 0)
+                }
+                for table in tables_data
+            ]
+        except Exception as e:
             print(f"Error getting tables: {e}")
             return []
 
     def get_table_data(self, table_name: str) -> Dict[str, Any]:
         """Get data from a specific table"""
         try:
-            cursor = self.connection.cursor()
+            response = requests.post(
+                f"https://{self.host}/api/v1/databases/{self.database}/query",
+                headers={'Authorization': f'Bearer {self.api_key}'},
+                json={'query': f"SELECT * FROM {table_name} LIMIT 100"}
+            )
             
-            # Get column information
-            cursor.execute(f"PRAGMA table_info('{table_name}')")
-            columns = [(row[1], row[2]) for row in cursor.fetchall()]
-            
-            # Get table data
-            cursor.execute(f"SELECT * FROM '{table_name}' LIMIT 100")
-            rows = cursor.fetchall()
-            
-            cursor.close()
+            if response.status_code != 200:
+                raise Exception(f"Query failed: {response.text}")
+                
+            result = response.json()
             return {
-                "columns": [{"name": col[0], "type": col[1]} for col in columns],
-                "data": [tuple(row) for row in rows]
+                "columns": [{"name": col["name"], "type": col["type"]} for col in result["columns"]],
+                "data": result["rows"]
             }
-        except sqlite3.Error as e:
+        except Exception as e:
             raise Exception(f"Error fetching table data: {str(e)}")
 
     def execute_query(self, query: str) -> Dict[str, Any]:
         """Execute a SQL query and return results"""
         try:
-            cursor = self.connection.cursor()
-            cursor.execute(query)
+            response = requests.post(
+                f"https://{self.host}/api/v1/databases/{self.database}/query",
+                headers={'Authorization': f'Bearer {self.api_key}'},
+                json={'query': query}
+            )
             
-            # Get results for SELECT queries
-            if cursor.description:
-                columns = [desc[0] for desc in cursor.description]
-                results = cursor.fetchall()
-            else:
-                # For non-SELECT queries (INSERT, UPDATE, DELETE)
-                self.connection.commit()
-                columns = []
-                results = []
-            
-            cursor.close()
+            if response.status_code != 200:
+                raise Exception(f"Query failed: {response.text}")
+                
+            result = response.json()
             return {
-                "columns": columns,
-                "results": [tuple(row) for row in results]
+                "columns": [col["name"] for col in result["columns"]],
+                "results": result["rows"]
             }
-        except sqlite3.Error as e:
+        except Exception as e:
             raise Exception(f"Query execution error: {str(e)}")
