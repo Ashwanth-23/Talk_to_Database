@@ -34,4 +34,4 @@ psycopg2-binary
 mysql-connector-python
 pymongo
 pandas
-openai
+openai == 0.28
